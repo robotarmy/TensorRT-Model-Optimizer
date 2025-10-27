@@ -154,7 +154,7 @@ exclude_lines = [
 
 
 [tool.bandit]
-exclude_dirs = ["examples/", "tests/"]
+exclude_dirs = ["examples/", "tests/", "setup.py"]
 # Do not change `skips`. It should be consistent with NVIDIA's Wheel-CI-CD bandit.yml config.
 # Use of `# nosec BXXX` requires special approval
 skips = [

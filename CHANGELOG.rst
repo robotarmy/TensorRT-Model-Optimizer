@@ -4,6 +4,10 @@ Model Optimizer Changelog (Linux)
 0.39 (2025-11-07)
 ^^^^^^^^^^^^^^^^^
 
+**Backward Breaking Changes**
+
+- Default ``cupy`` package (for INT4 ONNX quantization) is now ``cupy-cuda13x`` for CUDA 13 unless installed from source. If you install from PyPI wheel and have CUDA 12, you need to run ``pip uninstall -y cupy-cuda13x`` and ``pip install cupy-cuda12x`` after installing ``nvidia-modelopt``.
+
 **New Features**
 
 - Add flag ``op_types_to_exclude_fp16`` in ONNX quantization to exclude ops from being converted to FP16/BF16. Alternatively, for custom TensorRT ops, this can also be done by indicating ``'fp32'`` precision in ``trt_plugins_precision``.
