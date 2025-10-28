@@ -35,6 +35,7 @@ from tqdm import tqdm
 
 from modelopt import __version__
 from modelopt.torch.utils import import_plugin
+from megatron.core import ModelParallelConfig
 
 from .model_config import (
     KV_CACHE_FP8,
@@ -186,6 +187,7 @@ class GPTModelExporter:
         export_extra_modules: bool = False,
         dtype=torch.bfloat16,
         trust_remote_code: bool = True,
+        config: ModelParallelConfig | None = None,
     ):
         """Create a GPTModel exporter instance."""
         if not isinstance(model, (GPTModel, MambaModel, LLaVAModel)):
@@ -196,6 +198,9 @@ class GPTModelExporter:
         self._hf_config = transformers.AutoConfig.from_pretrained(
             pretrained_model_name_or_path, trust_remote_code=trust_remote_code
         )
+        if config.moe_router_dtype:
+            if config.moe_router_dtype == "fp32":
+                self.moe_router_dtype = torch.float32
         # If multimodal, extra the text_config
         self._hf_text_config = getattr(self._hf_config, "text_config", self._hf_config)
 
@@ -486,9 +491,11 @@ class GPTModelExporter:
                 "pack_name_remapping": self._pack_name_remapping,
                 "pack_name_remapping_gpt_oss": self._pack_name_remapping_gpt_oss,
             }
+            print("Mapping: ", mapping)
             func = method_map[mapping.func_name]
             prefix = mapping.target_name_or_prefix
             func_kwargs = mapping.func_kwargs
+            dtype = mapping.dtype
             return lambda m, *args: func(m, prefix.format(*args), **func_kwargs)
 
         for arch, mappings in all_mcore_hf_export_mapping.items():
@@ -519,12 +526,16 @@ class GPTModelExporter:
         prefix: str,
         skip_output_scale: bool = True,
         mapping={},
+        dtype: torch.dtype | None = None
     ):
+        if dtype is None:
+            dtype = self.dtype
+
         if isinstance(module, torch.Tensor):
             self._state_dict[prefix] = module
             return
 
-        name_to_value, qformat, block_size = get_quantized_state(module, self.dtype)
+        name_to_value, qformat, block_size = get_quantized_state(module, dtype)
 
         weight = name_to_value.pop("weight")
         weight_scale, weight_scale_2 = self._get_weight_scales(name_to_value, qformat)
@@ -1098,7 +1109,7 @@ class GPTModelExporter:
 
                 if not isinstance(layer.mlp, IdentityOp):
                     if "MoE" in str(type(layer.mlp)):
-                        self.rules["router"](layer.mlp.router, layer_id)
+                        self.rules["router"](layer.mlp.router, layer_id, dtype=self.moe_router_dtype)
                         if (
                             hasattr(layer.mlp, "shared_experts")
                             and layer.mlp.shared_experts is not None
@@ -1138,6 +1149,7 @@ def export_mcore_gpt_to_hf(
     export_extra_modules: bool = False,
     dtype: torch.dtype = torch.float16,
     export_dir: Path | str = tempfile.gettempdir(),
+    config: ModelParallelConfig = None,
 ):
     """Export Megatron Core GPTModel to unified checkpoint and save to export_dir.
 
@@ -1153,7 +1165,7 @@ def export_mcore_gpt_to_hf(
         export_dir: The target export path.
     """
     exporter = GPTModelExporter(
-        model, pretrained_model_name_or_path, export_extra_modules=export_extra_modules, dtype=dtype
+        model, pretrained_model_name_or_path, export_extra_modules=export_extra_modules, dtype=dtype, config=config
     )
     exporter.save_pretrained(export_dir, pretrained_model_name_or_path)
 
@@ -1173,6 +1185,6 @@ def import_mcore_gpt_from_hf(
         dtype: The weights data type to import.
     """
     importer = GPTModelImporter(
-        model, pretrained_model_path, workspace_dir=workspace_dir, dtype=dtype
+        model, pretrained_model_path, workspace_dir=workspace_dir, dtype=dtype,
     )
     importer._import_state_dict()
