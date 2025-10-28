@@ -124,9 +124,6 @@ class GraphSanitizer:
     def convert_opset(self) -> None:
         """Convert the model to the given opset version.
 
-        Args:
-            min_opset: minimum opset version to use
-
         The method checks all opset imports and converts the model if any are below the minimum version.
         """
         # Check all opset imports
