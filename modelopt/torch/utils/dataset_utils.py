@@ -93,6 +93,10 @@ SUPPORTED_DATASET_CONFIG: dict[str, Any] = {
         "config": {"path": "c4", "name": "en", "split": ["train"]},
         "preprocess": lambda sample: sample["text"],
     },
+    "japanese-wikipedia": {
+            "config": {"path": "llm-book/japanese-wikipedia", "name": "ja_wiki.jsonl", "split":["train"]},
+        "preprocess": lambda sample: sample["text"],
+    },
 }
 
 __all__ = [
