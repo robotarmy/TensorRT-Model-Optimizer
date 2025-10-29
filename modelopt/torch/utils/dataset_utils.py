@@ -94,7 +94,7 @@ SUPPORTED_DATASET_CONFIG: dict[str, Any] = {
         "preprocess": lambda sample: sample["text"],
     },
     "japanese-wikipedia": {
-            "config": {"path": "llm-book/japanese-wikipedia", "name": "ja_wiki.jsonl", "split":["train"]},
+            "config": {"path": "llm-book/japanese-wikipedia", "name": "default", "split":["train"]},
         "preprocess": lambda sample: sample["text"],
     },
 }
